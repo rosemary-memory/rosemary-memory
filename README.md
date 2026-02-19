@@ -13,6 +13,7 @@ Agent memory that combines **graphs + vectors** (Postgres/Apache AGE + sentence-
 2. `uv sync`
 3. `export OPENAI_API_KEY=...`
 4. `export DATABASE_URL=postgresql+asyncpg://rosemary:rosemary@localhost:5455/rosemary`
+5. Optional: `export RETRIEVAL_MIN_SCORE=0.35`
 
 ## Demo (copy/paste)
 ```
@@ -45,4 +46,4 @@ export EMBEDDING_SERVICE_URL=http://127.0.0.1:8765
 
 ## Notes
 - Domains use RIASEC (personal interests).
-- Retrieval uses sentence‑transformers embeddings.
+- Retrieval uses sentence‑transformers embeddings with a score threshold (`RETRIEVAL_MIN_SCORE`).
