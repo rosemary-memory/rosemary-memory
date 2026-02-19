@@ -1,0 +1,12 @@
+services:
+  age:
+    image: apache/age:latest
+    container_name: rosemary-age
+    ports:
+      - "5455:5432"
+    environment:
+      POSTGRES_USER: rosemary
+      POSTGRES_PASSWORD: rosemary
+      POSTGRES_DB: rosemary
+    volumes:
+      - ./scripts/init_age.sql:/docker-entrypoint-initdb.d/init_age.sql:ro

@@ -1,0 +1,27 @@
+[project]
+name = "rosemary-memory"
+version = "0.1.0"
+description = ""
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Rosemary", email = "hello@mini-agi.com" }]
+dependencies = [
+  "smolagents",
+  "sqlalchemy[asyncio]",
+  "asyncpg",
+  "python-dotenv",
+]
+
+[project.urls]
+Homepage = ""
+
+[project.scripts]
+rosemary-memory = "rosemary_memory.cli:main"
+
+[tool.uv]
+package = true
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

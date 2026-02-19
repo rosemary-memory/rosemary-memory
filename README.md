@@ -1,16 +1,33 @@
-## Hi there 👋
+## rosemary-memory
 
-<!--
-**rosemary-memory/rosemary-memory** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
+Agent-driven memory system backed by Apache AGE (Postgres graph extension) and `smolagents`.
 
-Here are some ideas to get you started:
+### Setup
+1. `uv venv`
+2. `uv sync`
+3. `docker compose up -d`
+4. Optional: copy `.env.example` to `.env` and fill in values
+5. Or use `./scripts/start.sh` to bootstrap env + db
 
-- 🔭 I’m currently working on ...
-- 🌱 I’m currently learning ...
-- 👯 I’m looking to collaborate on ...
-- 🤔 I’m looking for help with ...
-- 💬 Ask me about ...
-- 📫 How to reach me: ...
-- 😄 Pronouns: ...
-- ⚡ Fun fact: ...
--->
+### Environment
+- `OPENAI_API_KEY` (required)
+- `OPENAI_MODEL` (default: `gpt-4o-mini`)
+- `OPENAI_BASE_URL` (optional)
+- `DATABASE_URL` (required)
+- `AGE_GRAPH_NAME` (default: `gmemory`)
+
+Example `DATABASE_URL` for the docker compose setup:
+- `postgresql+asyncpg://rosemary:rosemary@localhost:5455/rosemary`
+
+### Run
+```
+rosemary-memory --prompt "Remember that my favorite theme is warm minimalism"
+```
+
+### What it does
+- Clusters details into coarse topics (LLM-based)
+- Stores `Cluster → Summary → Detail` nodes in AGE
+- Retrieves memory and feeds it into the agent loop
+
+### Notes
+- Update `pyproject.toml` if you want stricter dependency pins.
