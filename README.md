@@ -1,46 +1,19 @@
-## Hi there 👋
+# rosemary-memory
 
-<!--
-**rosemary-memory/rosemary-memory** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
+Agent memory with Postgres (Apache AGE) + `smolagents`.
 
-Here are some ideas to get you started:
+## Quickstart
+1. `uv venv`
+2. `uv sync`
+3. `docker compose up -d`
+4. `export OPENAI_API_KEY=...`
+5. `export DATABASE_URL=postgresql+asyncpg://rosemary:rosemary@localhost:5455/rosemary`
 
-<<<<<<< HEAD
-- 🔭 I’m currently working on ...
-- 🌱 I’m currently learning ...
-- 👯 I’m looking to collaborate on ...
-- 🤔 I’m looking for help with ...
-- 💬 Ask me about ...
-- 📫 How to reach me: ...
-- 😄 Pronouns: ...
-- ⚡ Fun fact: ...
--->
-=======
-### Environment
-- `OPENAI_API_KEY` (required)
-- `OPENAI_MODEL` (default: `gpt-4o-mini`)
-- `OPENAI_BASE_URL` (optional)
-- `DATABASE_URL` (required)
-- `AGE_GRAPH_NAME` (default: `gmemory`)
+## Commands
+- Store: `rosemary-memory store --text "I love shopping for fashion in Paris."`
+- Retrieve: `rosemary-memory retrieve --query "Paris"`
+- Export graph: `rosemary-memory export-graph`
 
-Example `DATABASE_URL` for the docker compose setup:
-- `postgresql+asyncpg://rosemary:rosemary@localhost:5455/rosemary`
-
-### Run
-```
-rosemary-memory run --prompt "Remember that my favorite theme is warm minimalism"
-rosemary-memory store --text "My favorite theme is warm minimalism"
-rosemary-memory retrieve --query "favorite theme"
-rosemary-memory export-graph
-rosemary-memory export-graph --format png
-rosemary-memory export-graph --format svg
-```
-
-### What it does
-- Clusters details into coarse topics (LLM-based)
-- Stores `Cluster → Summary → Detail` nodes in AGE
-- Retrieves memory and feeds it into the agent loop
-
-### Notes
-- Update `pyproject.toml` if you want stricter dependency pins.
->>>>>>> 5d4151d (added basic piping)
+## Notes
+- Domains use RIASEC (personal interests).
+- `.env.example` shows all supported env vars.
