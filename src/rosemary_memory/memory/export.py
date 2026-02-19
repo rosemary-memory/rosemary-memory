@@ -24,20 +24,20 @@ def _node_key(node: dict[str, Any]) -> str:
 def _node_label(node: dict[str, Any]) -> str:
     label = str(node.get("label", "Node"))
     props = node.get("properties", {}) if isinstance(node.get("properties"), dict) else {}
-    if label == "Cluster":
+    if label == "Domain":
         title = props.get("label", "cluster")
-    elif label == "Summary":
+    elif label == "Topic":
         title = props.get("text", "summary")
     elif label == "Detail":
         title = props.get("text", "detail")
     else:
         title = props.get("id", "node")
-    return f"{label}: {_sanitize_label(str(title))}"
+    return _sanitize_label(str(title))
 
 
-def _dot_node(node_id: str, label: str) -> str:
+def _dot_node(node_id: str, label: str, style: str) -> str:
     safe_label = label.replace('"', "'")
-    return f'  "{node_id}" [label="{safe_label}"];'
+    return f'  "{node_id}" [label="{safe_label}", {style}];'
 
 
 def _dot_edge(src: str, dst: str, label: str | None = None) -> str:
@@ -54,8 +54,8 @@ def _timestamp_slug() -> str:
 async def build_graphviz_dot(database_url: str, graph_name: str) -> str:
     age = AgeClient(database_url)
     query = """
-    MATCH (c:Cluster)
-    OPTIONAL MATCH (c)-[:HAS_SUMMARY]->(s:Summary)
+    MATCH (c:Domain)
+    OPTIONAL MATCH (c)-[:HAS_TOPIC]->(s:Topic)
     OPTIONAL MATCH (s)-[:HAS_DETAIL]->(d:Detail)
     RETURN {
       cluster: {label: label(c), properties: properties(c)},
@@ -96,21 +96,62 @@ async def build_graphviz_dot(database_url: str, graph_name: str) -> str:
             if s_key:
                 edges.add((s_key, d_key, "HAS_DETAIL"))
 
+    cluster_nodes: list[str] = []
+    summary_nodes: list[str] = []
+    detail_nodes: list[str] = []
+
+    for node_id in nodes:
+        if node_id.startswith("Domain:"):
+            cluster_nodes.append(node_id)
+        elif node_id.startswith("Topic:"):
+            summary_nodes.append(node_id)
+        elif node_id.startswith("Detail:"):
+            detail_nodes.append(node_id)
+
     lines = [
         "digraph Memory {",
-        "  rankdir=LR;",
-        "  dpi=200;",
-        "  nodesep=0.4;",
+        "  rankdir=TB;",
+        "  dpi=220;",
+        "  nodesep=0.35;",
         "  ranksep=0.6;",
-        '  node [shape=box, style="rounded,filled", color="#444444", fillcolor="#f6f6f6", fontname="Helvetica", fontsize=12];',
-        '  edge [color="#666666", fontname="Helvetica", fontsize=10];',
+        '  edge [color="#666666", fontname="Helvetica", fontsize=10, arrowsize=0.7];',
+        "",
+        "  subgraph cluster_clusters {",
+        "    label=\"Domains\";",
+        "    style=\"rounded\";",
+        "    color=\"#cccccc\";",
+        "    rank=same;",
     ]
+    for node_id in sorted(cluster_nodes):
+        lines.append(
+            _dot_node(
+                node_id,
+                nodes[node_id],
+                'shape=box, style="rounded,filled", color="#1f4e79", fillcolor="#e6f0fa", fontname="Helvetica", fontsize=12',
+            )
+        )
+    lines.extend(["  }", "", "  subgraph cluster_summaries {", "    label=\"Topics\";", "    style=\"rounded\";", "    color=\"#cccccc\";", "    rank=same;"])
+    for node_id in sorted(summary_nodes):
+        lines.append(
+            _dot_node(
+                node_id,
+                nodes[node_id],
+                'shape=box, style="rounded,filled", color="#5b3a29", fillcolor="#f5ede9", fontname="Helvetica", fontsize=11',
+            )
+        )
+    lines.extend(["  }", "", "  subgraph cluster_details {", "    label=\"Details\";", "    style=\"rounded\";", "    color=\"#cccccc\";", "    rank=same;"])
+    for node_id in sorted(detail_nodes):
+        lines.append(
+            _dot_node(
+                node_id,
+                nodes[node_id],
+                'shape=box, style="rounded,filled", color="#2f4f2f", fillcolor="#e9f3e9", fontname="Helvetica", fontsize=10',
+            )
+        )
+    lines.extend(["  }", ""])
 
-    for node_id, label in nodes.items():
-        lines.append(_dot_node(node_id, label))
-
-    for src, dst, label in sorted(edges):
-        lines.append(_dot_edge(src, dst, label))
+    for src, dst, _label in sorted(edges):
+        lines.append(_dot_edge(src, dst, None))
 
     lines.append("}")
     return "\n".join(lines)

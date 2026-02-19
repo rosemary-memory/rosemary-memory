@@ -31,18 +31,14 @@ async def _retrieve_once(database_url: str, graph_name: str, query: str, top_k: 
     return format_results(results)
 
 
-async def _update_once(
+def _update_once(
     database_url: str,
     graph_name: str,
     model,
     detail_text: str,
     source: str,
 ) -> str:
-    age = AgeClient(database_url)
-    store = GraphStore(age, graph_name)
-    await store.ensure_graph()
-    result = await update_from_detail(store, model, detail_text, source=source)
-    await age.close()
+    result = update_from_detail(database_url, graph_name, model, detail_text, source=source)
     return json.dumps(result, ensure_ascii=True)
 
 
@@ -55,6 +51,6 @@ def build_memory_tools(database_url: str, graph_name: str, model) -> list[Any]:
     @tool
     def memory_update(detail_text: str, source: str = "agent") -> str:
         """Store a detail into memory with cluster + summary."""
-        return _run(_update_once(database_url, graph_name, model, detail_text, source))
+        return _update_once(database_url, graph_name, model, detail_text, source)
 
     return [memory_retrieve, memory_update]
