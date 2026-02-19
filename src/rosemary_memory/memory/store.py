@@ -89,16 +89,22 @@ class GraphStore:
             return result
         return {}
 
-    async def create_detail(self, detail_text: str, source: str) -> dict[str, Any]:
+    async def create_detail(
+        self,
+        detail_text: str,
+        source: str,
+        embedding: list[float] | None = None,
+    ) -> dict[str, Any]:
         created_at = _utc_now()
         params = {
             "detail_id": _new_id(),
             "detail_text": detail_text,
             "source": source,
             "created_at": created_at,
+            "embedding": embedding,
         }
         query = """
-        CREATE (d:Detail {id: $detail_id, text: $detail_text, source: $source, created_at: $created_at})
+        CREATE (d:Detail {id: $detail_id, text: $detail_text, source: $source, created_at: $created_at, embedding: $embedding})
         RETURN {detail: properties(d)} AS result
         """
         rows = await self._age.execute_cypher(self._graph, query, params)
@@ -106,7 +112,10 @@ class GraphStore:
             return {}
         result = parse_agtype(rows[0][0])
         if isinstance(result, dict):
-            return result.get("detail", {}) if isinstance(result.get("detail"), dict) else result
+            detail = result.get("detail", {}) if isinstance(result.get("detail"), dict) else result
+            if isinstance(detail, dict):
+                detail.pop("embedding", None)
+            return detail
         return {}
 
     async def list_summaries(self, limit: int = 50) -> list[dict[str, Any]]:
@@ -122,7 +131,7 @@ class GraphStore:
             result = parse_agtype(row[0])
             if isinstance(result, dict):
                 results.append(result)
-        return results
+        return _flatten_results(results)
 
     async def list_clusters(self, limit: int = 50) -> list[dict[str, Any]]:
         params = {"k": limit}
@@ -160,17 +169,23 @@ class GraphStore:
             return result.get("domain", {}) if isinstance(result.get("domain"), dict) else result
         return {}
 
-    async def create_summary(self, summary_text: str) -> dict[str, Any]:
+    async def create_summary(
+        self,
+        summary_text: str,
+        embedding: list[float] | None = None,
+    ) -> dict[str, Any]:
         created_at = _utc_now()
         params = {
             "summary_id": _new_id(),
             "summary_text": summary_text,
             "created_at": created_at,
+            "embedding": embedding,
         }
         query = """
         MERGE (t:Topic {text: $summary_text})
         SET t.id = coalesce(t.id, $summary_id),
-            t.created_at = coalesce(t.created_at, $created_at)
+            t.created_at = coalesce(t.created_at, $created_at),
+            t.embedding = coalesce(t.embedding, $embedding)
         RETURN {summary: properties(t)} AS result
         """
         rows = await self._age.execute_cypher(self._graph, query, params)
@@ -178,7 +193,10 @@ class GraphStore:
             return {}
         result = parse_agtype(rows[0][0])
         if isinstance(result, dict):
-            return result.get("summary", {}) if isinstance(result.get("summary"), dict) else result
+            summary = result.get("summary", {}) if isinstance(result.get("summary"), dict) else result
+            if isinstance(summary, dict):
+                summary.pop("embedding", None)
+            return summary
         return {}
 
     async def link_detail_to_summary(self, detail_id: str, summary_id: str) -> None:
@@ -220,7 +238,7 @@ class GraphStore:
         await self._age.execute_cypher(self._graph, query, params)
     async def retrieve(self, query_text: str, top_k: int) -> list[dict[str, Any]]:
         terms = _expand_query_terms(query_text)
-        params: dict[str, Any] = {"k": top_k}
+        params: dict[str, Any] = {}
         clauses = []
         for idx, term in enumerate(terms):
             key = f"q{idx}"
@@ -236,11 +254,9 @@ class GraphStore:
         MATCH (c:Domain)-[:HAS_TOPIC]->(t:Topic)
         OPTIONAL MATCH (t)-[:HAS_DETAIL]->(d:Detail)
         WHERE {where_clause}
-        WITH c, t, collect(properties(d)) AS details
         RETURN {{cluster: properties(c),
                 summary: properties(t),
-                details: details}} AS result
-        LIMIT $k
+                detail: properties(d)}} AS result
         """
         rows = await self._age.execute_cypher(self._graph, query, params)
         results: list[dict[str, Any]] = []
@@ -276,3 +292,19 @@ def _expand_query_terms(query_text: str) -> list[str]:
         seen.add(key)
         deduped.append(t)
     return deduped
+
+
+def _flatten_results(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    grouped: dict[tuple[str, str], dict[str, Any]] = {}
+    for row in rows:
+        cluster = row.get("cluster") or {}
+        summary = row.get("summary") or {}
+        detail = row.get("detail") or {}
+        cluster_id = cluster.get("id") or cluster.get("label") or "cluster"
+        summary_id = summary.get("id") or summary.get("text") or "topic"
+        key = (str(cluster_id), str(summary_id))
+        if key not in grouped:
+            grouped[key] = {"cluster": cluster, "summary": summary, "details": []}
+        if detail:
+            grouped[key]["details"].append(detail)
+    return list(grouped.values())

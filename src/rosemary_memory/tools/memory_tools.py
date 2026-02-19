@@ -6,7 +6,8 @@ from typing import Any
 
 from smolagents import tool
 
-from rosemary_memory.memory.retrieval.retrieve import format_results
+from rosemary_memory.config import load_settings
+from rosemary_memory.memory.retrieval.retrieve import format_results, retrieve_memory
 from rosemary_memory.memory.update.update import update_from_detail
 from rosemary_memory.memory.store import GraphStore
 from rosemary_memory.storage.age import AgeClient
@@ -21,10 +22,16 @@ def _run(coro):
 
 
 async def _retrieve_once(database_url: str, graph_name: str, query: str, top_k: int) -> str:
+    settings = load_settings()
     age = AgeClient(database_url)
     store = GraphStore(age, graph_name)
     await store.ensure_graph()
-    results = await store.retrieve(query, top_k)
+    results = await retrieve_memory(
+        store,
+        query,
+        top_k,
+        min_score=settings.retrieval_min_score,
+    )
     await age.close()
     if not results:
         return "No relevant memory found."

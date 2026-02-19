@@ -136,9 +136,14 @@ def update_from_detail(
             source_label: Source identifier for the detail.
         """
         async def _op(store: GraphStore):
-            return await store.create_detail(text, source_label)
+            from rosemary_memory.memory.embeddings import embed_text
 
-        return _run_db(database_url, graph_name, _op)
+            embedding = embed_text(text)
+            return await store.create_detail(text, source_label, embedding=embedding)
+
+        result = _run_db(database_url, graph_name, _op)
+        result.pop("embedding", None)
+        return result
 
     @tool
     def create_topic(text: str) -> dict[str, Any]:
@@ -148,9 +153,14 @@ def update_from_detail(
             text: Topic text label.
         """
         async def _op(store: GraphStore):
-            return await store.create_summary(text)
+            from rosemary_memory.memory.embeddings import embed_text
 
-        return _run_db(database_url, graph_name, _op)
+            embedding = embed_text(text)
+            return await store.create_summary(text, embedding=embedding)
+
+        result = _run_db(database_url, graph_name, _op)
+        result.pop("embedding", None)
+        return result
 
     @tool
     def update_topic(topic_id: str, new_text: str) -> dict[str, Any]:

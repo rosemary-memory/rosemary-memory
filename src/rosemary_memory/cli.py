@@ -11,7 +11,7 @@ from rosemary_memory.config import load_settings
 from rosemary_memory.models.openai import build_openai_model
 from rosemary_memory.storage.age import AgeClient
 from rosemary_memory.memory.store import GraphStore
-from rosemary_memory.memory.retrieval.retrieve import format_results
+from rosemary_memory.memory.retrieval.retrieve import format_results, retrieve_memory
 from rosemary_memory.memory.update.update import update_from_detail
 from rosemary_memory.memory.export import build_graphviz_dot, default_snapshot_path
 from rosemary_memory.agents.default import build_agent
@@ -45,6 +45,10 @@ def _parse_args() -> argparse.Namespace:
         help="Export format",
     )
 
+    serve_parser = subparsers.add_parser("serve-embeddings", help="Run embeddings service")
+    serve_parser.add_argument("--host", default="127.0.0.1", help="Host to bind")
+    serve_parser.add_argument("--port", type=int, default=8765, help="Port to bind")
+
     return parser.parse_args()
 
 
@@ -56,11 +60,17 @@ def _run(coro):
     raise RuntimeError("CLI cannot run inside an active event loop")
 
 
-async def _retrieve_once(database_url: str, graph_name: str, query: str, top_k: int) -> str:
+async def _retrieve_once(
+    database_url: str,
+    graph_name: str,
+    query: str,
+    top_k: int,
+    min_score: float,
+) -> str:
     age = AgeClient(database_url)
     store = GraphStore(age, graph_name)
     await store.ensure_graph()
-    results = await store.retrieve(query, top_k)
+    results = await retrieve_memory(store, query, top_k, min_score=min_score)
     await age.close()
     return format_results(results) if results else ""
 
@@ -82,7 +92,15 @@ def _run_sync(prompt: str, top_k: int, no_update: bool) -> int:
 
     memory_context = ""
     if top_k > 0:
-        memory_context = _run(_retrieve_once(settings.database_url, settings.age_graph_name, prompt, top_k))
+        memory_context = _run(
+            _retrieve_once(
+                settings.database_url,
+                settings.age_graph_name,
+                prompt,
+                top_k,
+                settings.retrieval_min_score,
+            )
+        )
 
     final_prompt = prompt
     if memory_context:
@@ -109,7 +127,15 @@ def _store_sync(text: str, source: str) -> int:
 
 def _retrieve_sync(query: str, top_k: int) -> int:
     settings = load_settings()
-    output = _run(_retrieve_once(settings.database_url, settings.age_graph_name, query, top_k))
+    output = _run(
+        _retrieve_once(
+            settings.database_url,
+            settings.age_graph_name,
+            query,
+            top_k,
+            settings.retrieval_min_score,
+        )
+    )
     if not output:
         output = "No relevant memory found."
     print(output)
@@ -164,6 +190,12 @@ def main() -> int:
         return _store_sync(args.text, args.source)
     if args.command == "retrieve":
         return _retrieve_sync(args.query, args.top_k)
+    if args.command == "serve-embeddings":
+        from rosemary_memory.embeddings_service import app
+        import uvicorn
+
+        uvicorn.run(app, host=args.host, port=args.port, log_level="info")
+        return 0
     if args.command == "export-graph":
         should_open = args.open or not args.no_open
         return _export_graph_sync(args.out_dir, should_open, args.format)
