@@ -7,7 +7,7 @@ requires-python = ">=3.11"
 license = { text = "MIT" }
 authors = [{ name = "Rosemary", email = "hello@mini-agi.com" }]
 dependencies = [
-  "smolagents",
+  "smolagents[openai]",
   "sqlalchemy[asyncio]",
   "asyncpg",
   "python-dotenv",

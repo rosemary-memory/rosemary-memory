@@ -5,8 +5,8 @@ from smolagents import CodeAgent
 from rosemary_memory.tools.memory_tools import build_memory_tools
 
 
-def build_agent(model, store) -> CodeAgent:
-    tools = build_memory_tools(store, model)
+def build_agent(model, database_url: str, graph_name: str) -> CodeAgent:
+    tools = build_memory_tools(database_url, graph_name, model)
     return CodeAgent(
         tools=tools,
         model=model,

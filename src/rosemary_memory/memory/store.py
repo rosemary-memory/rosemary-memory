@@ -37,7 +37,7 @@ class GraphStore:
         )
 
     async def list_cluster_labels(self) -> list[str]:
-        query = "MATCH (c:Cluster) RETURN c.label AS label ORDER BY label"
+        query = "MATCH (c:Cluster) RETURN c.label AS result ORDER BY result"
         rows = await self._age.execute_cypher(self._graph, query)
         labels: list[str] = []
         for row in rows:
@@ -66,21 +66,22 @@ class GraphStore:
         }
         query = """
         MERGE (c:Cluster {label: $cluster_label})
-          ON CREATE SET c.id = $cluster_id, c.created_at = $created_at
+        SET c.id = coalesce(c.id, $cluster_id),
+            c.created_at = coalesce(c.created_at, $created_at)
         WITH c
         CREATE (s:Summary {id: $summary_id, text: $summary_text, created_at: $created_at})
         CREATE (d:Detail {id: $detail_id, text: $detail_text, source: $source, created_at: $created_at})
         CREATE (c)-[:HAS_SUMMARY]->(s)
         CREATE (s)-[:HAS_DETAIL]->(d)
-        RETURN properties(c) AS cluster, properties(s) AS summary, properties(d) AS detail
+        RETURN {cluster: properties(c), summary: properties(s), detail: properties(d)} AS result
         """
         rows = await self._age.execute_cypher(self._graph, query, params)
         if not rows:
             return {}
-        cluster = parse_agtype(rows[0][0])
-        summary = parse_agtype(rows[0][1])
-        detail = parse_agtype(rows[0][2])
-        return {"cluster": cluster, "summary": summary, "detail": detail}
+        result = parse_agtype(rows[0][0])
+        if isinstance(result, dict):
+            return result
+        return {}
 
     async def retrieve(self, query_text: str, top_k: int) -> list[dict[str, Any]]:
         params = {"q": query_text, "k": top_k}
@@ -89,19 +90,16 @@ class GraphStore:
         WHERE toLower(c.label) CONTAINS toLower($q)
            OR toLower(s.text) CONTAINS toLower($q)
         OPTIONAL MATCH (s)-[:HAS_DETAIL]->(d:Detail)
-        RETURN properties(c) AS cluster,
-               properties(s) AS summary,
-               collect(properties(d)) AS details
+        WITH c, s, collect(properties(d)) AS details
+        RETURN {cluster: properties(c),
+                summary: properties(s),
+                details: details} AS result
         LIMIT $k
         """
         rows = await self._age.execute_cypher(self._graph, query, params)
         results: list[dict[str, Any]] = []
         for row in rows:
-            results.append(
-                {
-                    "cluster": parse_agtype(row[0]),
-                    "summary": parse_agtype(row[1]),
-                    "details": parse_agtype(row[2]),
-                }
-            )
+            result = parse_agtype(row[0])
+            if isinstance(result, dict):
+                results.append(result)
         return results

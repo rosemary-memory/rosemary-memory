@@ -21,7 +21,12 @@ Example `DATABASE_URL` for the docker compose setup:
 
 ### Run
 ```
-rosemary-memory --prompt "Remember that my favorite theme is warm minimalism"
+rosemary-memory run --prompt "Remember that my favorite theme is warm minimalism"
+rosemary-memory store --text "My favorite theme is warm minimalism"
+rosemary-memory retrieve --query "favorite theme"
+rosemary-memory export-graph
+rosemary-memory export-graph --format png
+rosemary-memory export-graph --format svg
 ```
 
 ### What it does

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from typing import Any
 
 from sqlalchemy import text
@@ -34,19 +35,23 @@ class AgeClient:
         query: str,
         params: dict[str, Any] | None = None,
     ) -> list[Any]:
+        if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", graph_name):
+            raise ValueError(f"Invalid graph name: {graph_name!r}")
+
+        quoted_query = _dollar_quote(query)
         params_json = json.dumps(params or {})
         sql = (
-            "SELECT * FROM cypher(:graph, :query, :params::agtype) "
+            f"SELECT * FROM cypher('{graph_name}', {quoted_query}, CAST($1 AS agtype)) "
             "AS (result agtype);"
         )
-        return await self.execute_sql(
-            sql,
-            {
-                "graph": graph_name,
-                "query": query,
-                "params": params_json,
-            },
-        )
+        async with self._engine.begin() as conn:
+            await self._prepare_conn(conn)
+            result = await conn.exec_driver_sql(sql, (params_json,))
+            try:
+                rows = result.fetchall()
+            except Exception:
+                rows = []
+            return rows
 
 
 def parse_agtype(value: Any) -> Any:
@@ -58,3 +63,12 @@ def parse_agtype(value: Any) -> Any:
         except json.JSONDecodeError:
             return value
     return value
+
+
+def _dollar_quote(text: str) -> str:
+    delimiter = "$q$"
+    counter = 0
+    while delimiter in text:
+        counter += 1
+        delimiter = f"$q{counter}$"
+    return f"{delimiter}{text}{delimiter}"

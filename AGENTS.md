@@ -17,7 +17,10 @@
 - `uv sync`: Install dependencies from `pyproject.toml`.
 - `docker compose up -d`: Start Postgres with Apache AGE.
 - `./scripts/start.sh`: Bootstrap env + db (uses `.env` if present).
-- `rosemary-memory --prompt "..."`: Run the CLI agent.
+- `rosemary-memory run --prompt "..."`: Run the CLI agent.
+- `rosemary-memory store --text "..."`: Store a detail in memory.
+- `rosemary-memory retrieve --query "..."`: Retrieve memory.
+- `rosemary-memory export-graph`: Export Graphviz to `snapshots/` (default `png`, supports `svg`).
 - `python -m unittest`: Run tests.
 
 ## Coding Style & Naming Conventions
