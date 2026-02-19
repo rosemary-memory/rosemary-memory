@@ -65,18 +65,14 @@ async def _retrieve_once(database_url: str, graph_name: str, query: str, top_k: 
     return format_results(results) if results else ""
 
 
-async def _store_once(
+def _store_once(
     database_url: str,
     graph_name: str,
     model,
     detail_text: str,
     source: str,
 ) -> None:
-    age = AgeClient(database_url)
-    store = GraphStore(age, graph_name)
-    await store.ensure_graph()
-    await update_from_detail(store, model, detail_text, source=source)
-    await age.close()
+    update_from_detail(database_url, graph_name, model, detail_text, source=source)
 
 
 def _run_sync(prompt: str, top_k: int, no_update: bool) -> int:
@@ -100,14 +96,14 @@ def _run_sync(prompt: str, top_k: int, no_update: bool) -> int:
 
     if not no_update:
         detail_text = f"User: {prompt}\nAgent: {response}"
-        _run(_store_once(settings.database_url, settings.age_graph_name, model, detail_text, source="cli"))
+        _store_once(settings.database_url, settings.age_graph_name, model, detail_text, source="cli")
     return 0
 
 
 def _store_sync(text: str, source: str) -> int:
     settings = load_settings()
     model = build_openai_model(settings)
-    _run(_store_once(settings.database_url, settings.age_graph_name, model, text, source=source))
+    _store_once(settings.database_url, settings.age_graph_name, model, text, source=source)
     return 0
 
 
