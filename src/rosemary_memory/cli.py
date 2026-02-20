@@ -15,6 +15,7 @@ from rosemary_memory.memory.retrieval.retrieve import format_results, retrieve_m
 from rosemary_memory.memory.update.update import update_from_detail
 from rosemary_memory.memory.export import build_graphviz_dot, default_snapshot_path
 from rosemary_memory.agents.default import build_agent
+from rosemary_memory.memory.insights import generate_insights
 
 
 def _parse_args() -> argparse.Namespace:
@@ -48,6 +49,9 @@ def _parse_args() -> argparse.Namespace:
     serve_parser = subparsers.add_parser("serve-embeddings", help="Run embeddings service")
     serve_parser.add_argument("--host", default="127.0.0.1", help="Host to bind")
     serve_parser.add_argument("--port", type=int, default=8765, help="Port to bind")
+
+    insights_parser = subparsers.add_parser("generate-insights", help="Generate insights from pending details")
+    insights_parser.add_argument("--limit", type=int, default=25, help="Max details to process")
 
     return parser.parse_args()
 
@@ -195,6 +199,12 @@ def main() -> int:
         import uvicorn
 
         uvicorn.run(app, host=args.host, port=args.port, log_level="info")
+        return 0
+    if args.command == "generate-insights":
+        settings = load_settings()
+        model = build_openai_model(settings)
+        result = generate_insights(settings.database_url, settings.age_graph_name, model, limit=args.limit)
+        print(result)
         return 0
     if args.command == "export-graph":
         should_open = args.open or not args.no_open

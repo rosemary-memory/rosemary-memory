@@ -30,6 +30,8 @@ def _node_label(node: dict[str, Any]) -> str:
         title = props.get("text", "summary")
     elif label == "Detail":
         title = props.get("text", "detail")
+    elif label == "Insight":
+        title = props.get("text", "insight")
     else:
         title = props.get("id", "node")
     return _sanitize_label(str(title))
@@ -64,6 +66,18 @@ async def build_graphviz_dot(database_url: str, graph_name: str) -> str:
     } AS result
     """
     rows = await age.execute_cypher(graph_name, query)
+
+    insight_query = """
+    MATCH (t:Topic)
+    OPTIONAL MATCH (t)-[:HAS_INSIGHT]->(i:Insight)
+    OPTIONAL MATCH (i)-[:SUPPORTS_DETAIL]->(d:Detail)
+    RETURN {
+      summary: {label: label(t), properties: properties(t)},
+      insight: case when i is null then null else {label: label(i), properties: properties(i)} end,
+      detail: case when d is null then null else {label: label(d), properties: properties(d)} end
+    } AS result
+    """
+    insight_rows = await age.execute_cypher(graph_name, insight_query)
     await age.close()
 
     nodes: dict[str, str] = {}
@@ -96,9 +110,36 @@ async def build_graphviz_dot(database_url: str, graph_name: str) -> str:
             if s_key:
                 edges.add((s_key, d_key, "HAS_DETAIL"))
 
+    for row in insight_rows:
+        payload = parse_agtype(row[0])
+        if not isinstance(payload, dict):
+            continue
+        summary = payload.get("summary")
+        insight = payload.get("insight")
+        detail = payload.get("detail")
+
+        s_key = None
+        if isinstance(summary, dict):
+            s_key = _node_key(summary)
+            nodes[s_key] = _node_label(summary)
+
+        i_key = None
+        if isinstance(insight, dict):
+            i_key = _node_key(insight)
+            nodes[i_key] = _node_label(insight)
+            if s_key:
+                edges.add((s_key, i_key, "HAS_INSIGHT"))
+
+        if isinstance(detail, dict):
+            d_key = _node_key(detail)
+            nodes[d_key] = _node_label(detail)
+            if i_key:
+                edges.add((i_key, d_key, "SUPPORTS_DETAIL"))
+
     cluster_nodes: list[str] = []
     summary_nodes: list[str] = []
     detail_nodes: list[str] = []
+    insight_nodes: list[str] = []
 
     for node_id in nodes:
         if node_id.startswith("Domain:"):
@@ -107,6 +148,8 @@ async def build_graphviz_dot(database_url: str, graph_name: str) -> str:
             summary_nodes.append(node_id)
         elif node_id.startswith("Detail:"):
             detail_nodes.append(node_id)
+        elif node_id.startswith("Insight:"):
+            insight_nodes.append(node_id)
 
     lines = [
         "digraph Memory {",
@@ -149,6 +192,26 @@ async def build_graphviz_dot(database_url: str, graph_name: str) -> str:
             )
         )
     lines.extend(["  }", ""])
+
+    if insight_nodes:
+        lines.extend(["", "  subgraph cluster_insights {", "    label=\"Insights\";", "    style=\"rounded\";", "    color=\"#cccccc\";", "    rank=same;"])
+        for node_id in sorted(insight_nodes):
+            lines.append(
+                _dot_node(
+                    node_id,
+                    nodes[node_id],
+                    'shape=box, style="rounded,filled", color="#4b3b6b", fillcolor="#efe9f7", fontname="Helvetica", fontsize=10',
+                )
+            )
+        lines.extend(["  }", ""])
+
+    # Force layer ordering: Domains -> Topics -> Details -> Insights
+    if cluster_nodes and summary_nodes:
+        lines.append(f'  "{sorted(cluster_nodes)[0]}" -> "{sorted(summary_nodes)[0]}" [style=invis, weight=10];')
+    if summary_nodes and detail_nodes:
+        lines.append(f'  "{sorted(summary_nodes)[0]}" -> "{sorted(detail_nodes)[0]}" [style=invis, weight=10];')
+    if detail_nodes and insight_nodes:
+        lines.append(f'  "{sorted(detail_nodes)[0]}" -> "{sorted(insight_nodes)[0]}" [style=invis, weight=10];')
 
     for src, dst, _label in sorted(edges):
         lines.append(_dot_edge(src, dst, None))

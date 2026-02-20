@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timezone
+import asyncio
 from typing import Any
 
 from rosemary_memory.storage.age import AgeClient, parse_agtype
@@ -19,6 +20,38 @@ class GraphStore:
     def __init__(self, age: AgeClient, graph_name: str) -> None:
         self._age = age
         self._graph = graph_name
+        self._label_ready: set[str] = set()
+
+    async def _execute_cypher_with_retry(self, query: str, params: dict[str, Any] | None = None) -> list[Any]:
+        params = params or {}
+        for attempt in range(3):
+            try:
+                return await self._age.execute_cypher(self._graph, query, params)
+            except Exception as exc:
+                message = str(exc)
+                if "DuplicateTableError" in message or "Entity failed to be updated" in message:
+                    await asyncio.sleep(0.1 * (attempt + 1))
+                    continue
+                raise
+        return await self._age.execute_cypher(self._graph, query, params)
+
+    async def _ensure_edge_label(self, label: str) -> None:
+        if label in self._label_ready:
+            return
+        # Trigger edge label creation safely.
+        params = {"label": label}
+        query = """
+        MATCH (a) WHERE false
+        MATCH (b) WHERE false
+        MERGE (a)-[r:$label]->(b)
+        RETURN r
+        """
+        try:
+            await self._age.execute_cypher(self._graph, query, params)
+        except Exception:
+            # Best-effort only.
+            pass
+        self._label_ready.add(label)
 
     @property
     def graph_name(self) -> str:
@@ -102,12 +135,13 @@ class GraphStore:
             "source": source,
             "created_at": created_at,
             "embedding": embedding,
+            "insight_pending": True,
         }
         query = """
-        CREATE (d:Detail {id: $detail_id, text: $detail_text, source: $source, created_at: $created_at, embedding: $embedding})
+        CREATE (d:Detail {id: $detail_id, text: $detail_text, source: $source, created_at: $created_at, embedding: $embedding, insight_pending: $insight_pending})
         RETURN {detail: properties(d)} AS result
         """
-        rows = await self._age.execute_cypher(self._graph, query, params)
+        rows = await self._execute_cypher_with_retry(query, params)
         if not rows:
             return {}
         result = parse_agtype(rows[0][0])
@@ -161,7 +195,7 @@ class GraphStore:
             c.created_at = coalesce(c.created_at, $created_at)
         RETURN {domain: properties(c)} AS result
         """
-        rows = await self._age.execute_cypher(self._graph, query, params)
+        rows = await self._execute_cypher_with_retry(query, params)
         if not rows:
             return {}
         result = parse_agtype(rows[0][0])
@@ -188,7 +222,7 @@ class GraphStore:
             t.embedding = coalesce(t.embedding, $embedding)
         RETURN {summary: properties(t)} AS result
         """
-        rows = await self._age.execute_cypher(self._graph, query, params)
+        rows = await self._execute_cypher_with_retry(query, params)
         if not rows:
             return {}
         result = parse_agtype(rows[0][0])
@@ -199,7 +233,35 @@ class GraphStore:
             return summary
         return {}
 
+    async def create_insight(
+        self,
+        insight_text: str,
+        embedding: list[float] | None = None,
+    ) -> dict[str, Any]:
+        created_at = _utc_now()
+        params = {
+            "insight_id": _new_id(),
+            "insight_text": insight_text,
+            "created_at": created_at,
+            "embedding": embedding,
+        }
+        query = """
+        CREATE (i:Insight {id: $insight_id, text: $insight_text, created_at: $created_at, embedding: $embedding})
+        RETURN {insight: properties(i)} AS result
+        """
+        rows = await self._execute_cypher_with_retry(query, params)
+        if not rows:
+            return {}
+        result = parse_agtype(rows[0][0])
+        if isinstance(result, dict):
+            insight = result.get("insight", {}) if isinstance(result.get("insight"), dict) else result
+            if isinstance(insight, dict):
+                insight.pop("embedding", None)
+            return insight
+        return {}
+
     async def link_detail_to_summary(self, detail_id: str, summary_id: str) -> None:
+        await self._ensure_edge_label("HAS_DETAIL")
         params = {"detail_id": detail_id, "summary_id": summary_id}
         query = """
         MATCH (d:Detail {id: $detail_id})
@@ -207,9 +269,48 @@ class GraphStore:
         MERGE (t)-[:HAS_DETAIL]->(d)
         RETURN {ok: true} AS result
         """
-        await self._age.execute_cypher(self._graph, query, params)
+        await self._execute_cypher_with_retry(query, params)
+
+    async def link_detail_to_insight(self, detail_id: str, insight_id: str) -> None:
+        await self._ensure_edge_label("SUPPORTS_DETAIL")
+        params = {"detail_id": detail_id, "insight_id": insight_id}
+        query = """
+        MATCH (d:Detail {id: $detail_id})
+        MATCH (i:Insight {id: $insight_id})
+        MERGE (i)-[:SUPPORTS_DETAIL]->(d)
+        RETURN {ok: true} AS result
+        """
+        await self._execute_cypher_with_retry(query, params)
+
+    async def link_insight_to_topic(self, insight_id: str, topic_id: str) -> None:
+        await self._ensure_edge_label("HAS_INSIGHT")
+        params = {"insight_id": insight_id, "topic_id": topic_id}
+        query = """
+        MATCH (i:Insight {id: $insight_id})
+        MATCH (t:Topic {id: $topic_id})
+        MERGE (t)-[:HAS_INSIGHT]->(i)
+        RETURN {ok: true} AS result
+        """
+        await self._execute_cypher_with_retry(query, params)
+
+    async def resolve_detail_id(self, detail_ref: str) -> str | None:
+        params = {"detail_ref": detail_ref}
+        query = """
+        MATCH (d:Detail)
+        WHERE d.id = $detail_ref OR d.text = $detail_ref
+        RETURN {id: d.id} AS result
+        LIMIT 1
+        """
+        rows = await self._age.execute_cypher(self._graph, query, params)
+        if not rows:
+            return None
+        result = parse_agtype(rows[0][0])
+        if isinstance(result, dict):
+            return result.get("id")
+        return None
 
     async def link_summary_to_cluster(self, summary_id: str, cluster_label: str) -> None:
+        await self._ensure_edge_label("HAS_TOPIC")
         created_at = _utc_now()
         params = {
             "summary_id": summary_id,
@@ -218,16 +319,112 @@ class GraphStore:
             "created_at": created_at,
         }
         query = """
+        MATCH (t:Topic {id: $summary_id})
         MERGE (c:Domain {label: $cluster_label})
         SET c.id = coalesce(c.id, $cluster_id),
             c.created_at = coalesce(c.created_at, $created_at)
-        WITH c
-        MATCH (t:Topic {id: $summary_id})
         MERGE (c)-[:HAS_TOPIC]->(t)
+        RETURN {ok: true} AS result
+        """
+        await self._execute_cypher_with_retry(query, params)
+
+    async def list_pending_details(self, limit: int = 25) -> list[dict[str, Any]]:
+        params = {"k": limit}
+        query = """
+        MATCH (d:Detail)
+        WHERE coalesce(d.insight_pending, true) = true
+        RETURN {id: d.id, text: d.text} AS result
+        LIMIT $k
+        """
+        rows = await self._age.execute_cypher(self._graph, query, params)
+        results: list[dict[str, Any]] = []
+        for row in rows:
+            result = parse_agtype(row[0])
+            if isinstance(result, dict):
+                results.append(result)
+        return results
+
+    async def mark_detail_insight_processed(self, detail_id: str) -> None:
+        params = {"detail_id": detail_id, "processed_at": _utc_now()}
+        query = """
+        MATCH (d:Detail {id: $detail_id})
+        SET d.insight_pending = false,
+            d.insight_processed_at = $processed_at
         RETURN {ok: true} AS result
         """
         await self._age.execute_cypher(self._graph, query, params)
 
+    async def get_detail_context(self, detail_id: str) -> dict[str, Any]:
+        params = {"detail_id": detail_id}
+        query = """
+        MATCH (d:Detail {id: $detail_id})
+        WITH d
+        OPTIONAL MATCH (t:Topic)-[:HAS_DETAIL]->(d)
+        WITH d, collect(distinct properties(t)) AS topics
+        OPTIONAL MATCH (c:Domain)-[:HAS_TOPIC]->(:Topic)-[:HAS_DETAIL]->(d)
+        WITH d, topics, collect(distinct properties(c)) AS domains
+        RETURN {detail: properties(d), topics: topics, domains: domains} AS result
+        """
+        rows = await self._age.execute_cypher(self._graph, query, params)
+        if not rows:
+            return {}
+        result = parse_agtype(rows[0][0])
+        if not isinstance(result, dict):
+            return {}
+        detail = result.get("detail")
+        if isinstance(detail, dict):
+            detail.pop("embedding", None)
+        topics = result.get("topics")
+        if isinstance(topics, list):
+            for topic in topics:
+                if isinstance(topic, dict):
+                    topic.pop("embedding", None)
+        domains = result.get("domains")
+        if isinstance(domains, list):
+            for domain in domains:
+                if isinstance(domain, dict):
+                    domain.pop("embedding", None)
+        return result
+
+    async def list_insights_for_topics(self, topic_ids: list[str]) -> list[dict[str, Any]]:
+        if not topic_ids:
+            return []
+        params = {"topic_ids": topic_ids}
+        query = """
+        MATCH (t:Topic)-[:HAS_INSIGHT]->(i:Insight)
+        WHERE t.id IN $topic_ids
+        RETURN {id: i.id, text: i.text} AS result
+        """
+        rows = await self._age.execute_cypher(self._graph, query, params)
+        results: list[dict[str, Any]] = []
+        for row in rows:
+            result = parse_agtype(row[0])
+            if isinstance(result, dict):
+                results.append(result)
+        return results
+
+    async def list_insights_for_topic(self, topic_id: str) -> list[dict[str, Any]]:
+        params = {"topic_id": topic_id}
+        query = """
+        MATCH (t:Topic {id: $topic_id})-[:HAS_INSIGHT]->(i:Insight)
+        RETURN {id: i.id, text: i.text} AS result
+        """
+        rows = await self._age.execute_cypher(self._graph, query, params)
+        results: list[dict[str, Any]] = []
+        for row in rows:
+            result = parse_agtype(row[0])
+            if isinstance(result, dict):
+                results.append(result)
+        return results
+
+    async def update_insight_text(self, insight_id: str, new_text: str) -> None:
+        params = {"insight_id": insight_id, "insight_text": new_text}
+        query = """
+        MATCH (i:Insight {id: $insight_id})
+        SET i.text = $insight_text
+        RETURN {ok: true} AS result
+        """
+        await self._age.execute_cypher(self._graph, query, params)
     async def update_topic_text(self, topic_id: str, new_text: str) -> None:
         params = {"topic_id": topic_id, "topic_text": new_text}
         query = """

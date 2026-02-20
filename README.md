@@ -42,6 +42,7 @@ export EMBEDDING_SERVICE_URL=http://127.0.0.1:8765
 - Store: `rosemary-memory store --text "I love shopping for fashion in Paris."`
 - Retrieve: `rosemary-memory retrieve --query "Paris"`
 - Export graph: `rosemary-memory export-graph`
+- Generate insights: `rosemary-memory generate-insights --limit 25`
 
 ## License
 - MIT (see `LICENSE`)
