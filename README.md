@@ -1,5 +1,7 @@
 # rosemary-memory
 
+![](docs/img/whoami.png)
+
 Agent memory that combines **graphs + vectors** (Postgres/Apache AGE + sentence-transformers embeddings) with `smolagents`.
 
 ## Why a graph (vs vectors)?
