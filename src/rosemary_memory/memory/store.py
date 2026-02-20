@@ -403,6 +403,20 @@ class GraphStore:
                 results.append(result)
         return results
 
+    async def list_insights_for_topic(self, topic_id: str) -> list[dict[str, Any]]:
+        params = {"topic_id": topic_id}
+        query = """
+        MATCH (t:Topic {id: $topic_id})-[:HAS_INSIGHT]->(i:Insight)
+        RETURN {id: i.id, text: i.text} AS result
+        """
+        rows = await self._age.execute_cypher(self._graph, query, params)
+        results: list[dict[str, Any]] = []
+        for row in rows:
+            result = parse_agtype(row[0])
+            if isinstance(result, dict):
+                results.append(result)
+        return results
+
     async def update_insight_text(self, insight_id: str, new_text: str) -> None:
         params = {"insight_id": insight_id, "insight_text": new_text}
         query = """

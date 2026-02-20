@@ -25,21 +25,56 @@ def _score_item(query_vec: list[float], item: dict[str, Any]) -> float:
 
 
 def format_results(results: list[dict[str, Any]]) -> str:
+    detail_map: dict[str, dict[str, set[str]]] = {}
+
+    for item in results:
+        cluster = item.get("cluster", {}) if isinstance(item.get("cluster"), dict) else {}
+        summary = item.get("summary", {}) if isinstance(item.get("summary"), dict) else {}
+        details = item.get("details", []) if isinstance(item.get("details"), list) else []
+        insights = item.get("insights", []) if isinstance(item.get("insights"), list) else []
+
+        domain = str(cluster.get("label", "")).strip()
+        topic = str(summary.get("text", "")).strip()
+        insight_texts = []
+        for insight in insights:
+            if isinstance(insight, dict):
+                text = str(insight.get("text", "")).strip()
+            else:
+                text = str(insight).strip()
+            if text:
+                insight_texts.append(text)
+
+        for detail in details:
+            if isinstance(detail, dict):
+                detail_text = str(detail.get("text", "")).strip()
+            else:
+                detail_text = str(detail).strip()
+            if not detail_text:
+                continue
+            bucket = detail_map.setdefault(
+                detail_text,
+                {"topics": set(), "domains": set(), "insights": set()},
+            )
+            if topic:
+                bucket["topics"].add(topic)
+            if domain:
+                bucket["domains"].add(domain)
+            for text in insight_texts:
+                bucket["insights"].add(text)
+
+    if not detail_map:
+        return ""
+
     lines: list[str] = []
-    for idx, item in enumerate(results, start=1):
-        cluster = item.get("cluster", {})
-        summary = item.get("summary", {})
-        details = item.get("details", [])
-        lines.append(f"{idx}. Cluster: {cluster.get('label', 'unknown')}")
-        lines.append(f"   Summary: {summary.get('text', '')}")
-        if details:
-            for detail in details[:3]:
-                if isinstance(detail, dict):
-                    text = detail.get("text", "")
-                else:
-                    text = str(detail)
-                if text:
-                    lines.append(f"   Detail: {text}")
+    for idx, (detail_text, meta) in enumerate(detail_map.items(), start=1):
+        lines.append(f"{idx}. Detail: {detail_text}")
+        if meta["topics"]:
+            lines.append(f"   Topics: {', '.join(sorted(meta['topics']))}")
+        if meta["domains"]:
+            lines.append(f"   Domains: {', '.join(sorted(meta['domains']))}")
+        if meta["insights"]:
+            lines.append(f"   Insights: {', '.join(sorted(meta['insights']))}")
+
     return "\n".join(lines).strip()
 
 
@@ -77,4 +112,16 @@ async def retrieve_memory(
     if not scored:
         return []
     scored.sort(key=lambda x: x[1], reverse=True)
-    return [item for item, _score in scored[:top_k]]
+    results = [item for item, _score in scored[:top_k]]
+
+    # Attach insights for each topic.
+    for item in results:
+        summary = item.get("summary", {}) if isinstance(item.get("summary"), dict) else {}
+        topic_id = summary.get("id")
+        if not topic_id:
+            item["insights"] = []
+            continue
+        insights = await store.list_insights_for_topic(str(topic_id))
+        item["insights"] = insights
+
+    return results
