@@ -44,6 +44,10 @@ export EMBEDDING_SERVICE_URL=http://127.0.0.1:8765
 - Export graph: `rosemary-memory export-graph`
 - Generate insights: `rosemary-memory generate-insights --limit 25`
 
+## Examples
+- Frontier profile import: `uv run python examples/frontier_profile_import.py --path examples/example_data_extract.yaml`
+  - Visualize after import: `uv run rosemary-memory export-graph`
+
 ## Tests
 - E2E smoke test (isolated test DB): `./tests/test_e2e.sh`
   - Uses `tests/docker-compose.test.yml` with its own compose project name.
