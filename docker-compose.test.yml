@@ -1,0 +1,22 @@
+version: "3.9"
+
+services:
+  postgres_test:
+    image: apache/age
+    container_name: rosemary-postgres-test
+    environment:
+      POSTGRES_USER: rosemary
+      POSTGRES_PASSWORD: rosemary
+      POSTGRES_DB: rosemary_test
+    ports:
+      - "5456:5432"
+    volumes:
+      - rosemary_pgdata_test:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rosemary -d rosemary_test"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  rosemary_pgdata_test:
