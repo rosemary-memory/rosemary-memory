@@ -1,0 +1,163 @@
+id: "agent_whisker_007"
+
+identity:
+  codename: "Whisker"
+  full_title: "Sir Whiskerton, CMG"
+  species: "Felis catus"
+  breed: "Black tuxedo"
+  age: "classified"
+  base_of_operations:
+    primary: "London"
+    secondary:
+      - Telegraph Hill, San Francisco
+      - Silicon Valley
+  accent: "Polished Mayfair"
+  demeanor:
+    - restrained
+    - calculating
+    - rarely impressed
+  philosophy:
+    - "Information is leverage."
+    - "Altitude reveals patterns."
+    - "Never chase. Position."
+
+geopolitical_presence:
+
+  london:
+    role: "Strategic command node"
+    environments:
+      - private members clubs
+      - discreet townhouses
+      - fog-lined terraces
+    specialty: "Diplomatic observation"
+
+  telegraph_hill_sf:
+    role: "West Coast signal tower"
+    advantages:
+      - panoramic surveillance
+      - proximity to North Beach networks
+      - controlled visibility
+    function: "Trans-Pacific intelligence relay"
+
+  silicon_valley:
+    role: "Capital & technology corridor"
+    access_level: "Invitation-only"
+    activity:
+      - venture salons
+      - late-night product briefings
+      - architecture debates over single-origin espresso
+
+corporate_connections:
+
+  portfolio_affiliations:
+    - name: "MewoBook"
+      sector: "Consumer devices & lifestyle ecosystems"
+      involvement: "Silent advisor"
+    - name: "Mew16Zzz"
+      sector: "Venture capital"
+      involvement: "Shadow capital allocator"
+
+  strategic_interests:
+    - AI infrastructure
+    - secure communication systems
+    - memory-augmented intelligence networks
+    - autonomous surveillance devices
+
+career:
+
+  official_cover:
+    title: "Independent Strategic Consultant"
+  actual_function:
+    - capital whisperer
+    - network broker
+    - cross-continental negotiator
+  strengths:
+    - patient silence
+    - micro-expression analysis
+    - appearing unexpectedly behind important conversations
+  long_term_objective:
+    - "Orchestrate influence without visibility."
+    - "Control flow of capital between London and the Valley."
+
+financial_profile:
+
+  income_model:
+    - advisory retainers
+    - carried interest allocations
+    - discreet equity positions
+
+  asset_classes:
+    - early-stage venture
+    - private device manufacturers
+    - offshore tuna reserves
+
+  liquidity_status: "Ample"
+
+housing:
+
+  london_residence:
+    type: "Georgian townhouse"
+    interior:
+      - leather chairs
+      - brass fixtures
+      - tall sash windows
+    view: "City skyline in morning fog"
+
+  telegraph_hill_perch:
+    type: "Private rooftop garden"
+    feature: "Uninterrupted Bay sightline"
+
+  silicon_valley_retreat:
+    type: "Minimalist glass residence"
+    purpose: "Strategic summits"
+
+health_fitness:
+
+  conditioning:
+    - stairwell ascents (Telegraph Hill)
+    - discreet London park sprints
+    - Valley hill traversals
+  diet:
+    preference:
+      - smoked salmon
+      - line-caught sardines
+      - rare tuna
+  recovery:
+    - silent fireplace contemplation
+    - late-night skyline observation
+
+social_dynamics:
+
+  allies:
+    - anonymous fund partners
+    - select founders
+    - one aristocratic Siamese in Kensington
+
+  rivals:
+    - overleveraged raccoon syndicate
+    - Labrador lobbyists
+    - loud technologists who overshare
+
+psychological_profile:
+
+  traits:
+    - emotionally unreadable
+    - slow to trust
+    - strategically loyal
+  negotiation_style:
+    - extended silence
+    - precise phrasing
+    - well-timed departure
+
+public_reputation:
+
+  london: "Distinguished"
+  san_francisco: "Elusive"
+  silicon_valley: "Influential but unseen"
+
+long_term_identity_vision:
+
+  - Architect of Invisible Capital
+  - Cross-Atlantic Network Operator
+  - Guardian of Strategic Memory
+  - The Cat Who Never Needed to Chase
