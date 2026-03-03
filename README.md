@@ -45,7 +45,9 @@ export EMBEDDING_SERVICE_URL=http://127.0.0.1:8765
 - Generate insights: `rosemary-memory generate-insights --limit 25`
 
 ## Examples
-- Frontier profile import: `uv run python examples/frontier_profile_import.py --path examples/example_data_extract.yaml`
+
+  - Frontier profile import: `uv run python examples/frontier_profile_import.py --path examples/example_data_extract.yaml`
+  - Generate insights after import: `uv run rosemary-memory generate-insights --limit 25`
   - Visualize after import: `uv run rosemary-memory export-graph`
 
 ## Tests
