@@ -44,6 +44,12 @@ export EMBEDDING_SERVICE_URL=http://127.0.0.1:8765
 - Export graph: `rosemary-memory export-graph`
 - Generate insights: `rosemary-memory generate-insights --limit 25`
 
+## Tests
+- E2E smoke test (isolated test DB): `./tests/test_e2e.sh`
+  - Uses `tests/docker-compose.test.yml` with its own compose project name.
+  - Defaults to `DATABASE_URL=postgresql+asyncpg://rosemary:rosemary@localhost:5456/rosemary_test`.
+  - Set `DATABASE_URL_TEST` to override.
+
 ## License
 - MIT (see `LICENSE`)
 
