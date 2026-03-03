@@ -204,7 +204,9 @@ def main() -> int:
         settings = load_settings()
         model = build_openai_model(settings)
         result = generate_insights(settings.database_url, settings.age_graph_name, model, limit=args.limit)
-        print(result)
+        import json
+
+        print(json.dumps(result))
         return 0
     if args.command == "export-graph":
         should_open = args.open or not args.no_open
