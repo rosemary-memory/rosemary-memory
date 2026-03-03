@@ -25,16 +25,13 @@ else
 fi
 
 echo "[e2e] Starting test database..."
-docker compose -f docker-compose.yml -f docker-compose.test.yml up -d postgres_test
+docker compose -p rosemary-test -f docker-compose.yml -f tests/docker-compose.test.yml up -d postgres_test
 
 echo "[e2e] Checking env vars..."
 if [[ -z "${DATABASE_URL:-}" ]]; then
   echo "[e2e] ERROR: DATABASE_URL is not set"
   exit 1
 fi
-
-echo "[e2e] Resetting graph..."
-psql "$DATABASE_URL" -c "SELECT drop_graph('${AGE_GRAPH_NAME}', true);" >/dev/null 2>&1 || true
 
 echo "[e2e] Storing seed details..."
 uv run rosemary-memory store --text "Interested in trying Michelin-starred restaurants in Paris."
@@ -60,4 +57,4 @@ uv run rosemary-memory export-graph >/dev/null
 
 echo "[e2e] Done."
 echo "[e2e] To tear down test DB:"
-echo "       docker compose -f docker-compose.yml -f docker-compose.test.yml down -v"
+echo "       docker compose -p rosemary-test -f docker-compose.yml -f tests/docker-compose.test.yml down -v"
