@@ -1,10 +1,12 @@
 # rosemary-memory
 
+_Repeating yourself to an agent every time you use it isn’t intelligence, it’s amnesia. Rosemary sprinkles in the right amount of information so your agent can use the rest of its context to do something more useful._
+
 ![](docs/img/example.png)
 
-Agent memory that combines **graphs + vectors** (Postgres/Apache AGE + sentence-transformers embeddings) with `smolagents`.
+[Domains → Topics → Details] → Insights.
 
-Repeating yourself to an agent every time you use it isn’t intelligence, it’s amnesia. Rosemary sprinkles in the right amount of information so your agent can use the rest of its context to do something more useful.
+Rosemary: Agent memory that combines **graphs + vectors** (Postgres/Apache AGE + sentence-transformers embeddings) with `smolagents`.
 
 ## What You Get
 - For builders: shrink prompt bloat, reuse memory across agents, and keep retrieval fast.
@@ -36,6 +38,8 @@ Rosemary uses Apache AGE (graph on Postgres) to store Domains → Topics → Det
 - Vectors find what’s relevant; graphs show how it connects.
 - Explicit structure: Domains → Topics → Details.
 - Multi-topic linking: a detail can live under multiple topics/domains.
+
+
 
 ![](docs/img/whoami.png)
 
