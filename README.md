@@ -3,10 +3,9 @@
 _Repeating yourself to an agent every time you use it isn’t intelligence, it’s amnesia. Rosemary sprinkles in the right amount of information so your agent can use the rest of its context to do something more useful._
 
 ![](docs/img/example.png)
+_[Domains → Topics → Details] → Insights._
 
-[Domains → Topics → Details] → Insights.
-
-Rosemary: Agent memory that combines **graphs + vectors** (Postgres/Apache AGE + sentence-transformers embeddings) with `smolagents`.
+Agent memory that combines **graphs + vectors** (Postgres/Apache AGE + sentence-transformers embeddings) powered by `smolagents`.
 
 ## What You Get
 - For builders: shrink prompt bloat, reuse memory across agents, and keep retrieval fast.
@@ -38,10 +37,6 @@ Rosemary uses Apache AGE (graph on Postgres) to store Domains → Topics → Det
 - Vectors find what’s relevant; graphs show how it connects.
 - Explicit structure: Domains → Topics → Details.
 - Multi-topic linking: a detail can live under multiple topics/domains.
-
-
-
-![](docs/img/whoami.png)
 
 ## Quickstart
 1. `uv venv`
@@ -87,6 +82,8 @@ Command-line interface for storing, retrieving, and exporting memory.
 - Frontier profile import: `uv run python examples/frontier_profile_import.py --path examples/example_data_extract.yaml`
 - Generate insights after import: `uv run rosemary-memory generate-insights --limit 25`
 - Visualize after import: `uv run rosemary-memory export-graph`
+
+![](docs/img/whoami.png)
 
 ## Tests
 - E2E smoke test (isolated test DB): `./tests/test_e2e.sh`. Uses `tests/docker-compose.test.yml` with its own compose project name. Defaults to `DATABASE_URL=postgresql+asyncpg://rosemary:rosemary@localhost:5456/rosemary_test`. Set `DATABASE_URL_TEST` to override.
